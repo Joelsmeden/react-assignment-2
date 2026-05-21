@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ethers } from 'ethers';
 import { TodoItem } from './components/TodoItem.tsx';
 import './App.css';
 
@@ -48,15 +49,44 @@ function App() {
   }, []);
 
   return (
-    <div className='app-container'>
-      <h1>Min Todo-lista</h1>
-      <ul>
-        {todos.map((t) => (
-          <TodoItem key={t.id} todo={t} onDelete={removeTodo} />
-        ))}
-      </ul>
-    </div>
+    <>
+      <div className='wallet-info'>
+        <p>
+          <strong>Konto:</strong> {account ? account : 'Ej ansluten'}
+        </p>
+        <p>
+          <strong>Balans:</strong> {account ? `${balance} ETH` : '0 ETH'}
+        </p>
+      </div>
+      <div className='app-container'>
+        <h1>Min Todo-lista</h1>
+        <ul>
+          {todos.map((t) => (
+            <TodoItem key={t.id} todo={t} onDelete={removeTodo} />
+          ))}
+        </ul>
+      </div>
+    </>
   );
 }
+
+//Nya ändringarna
+
+const [account, setAccount] = useState<string>('');
+const [balance, setBalance] = useState<string>('');
+
+// Denna funktion körs efter att användaren har anslutit sin MetaMask
+const getWalletInfo = async (userAddress: string, currentProvider: any) => {
+  setAccount(userAddress);
+
+  // 1. Hämta balansen i "Wei" (blockkedjans minsta enhet)
+  const rawBalance = await currentProvider.getBalance(userAddress);
+
+  // 2. Gör om Wei till vanlig ETH (t.ex. 100.0 ETH)
+  const formattedBalance = ethers.utils.formatEther(rawBalance);
+
+  // 3. Spara och runda av till 4 decimaler för snyggare design
+  setBalance(parseFloat(formattedBalance).toFixed(4));
+};
 
 export default App;
