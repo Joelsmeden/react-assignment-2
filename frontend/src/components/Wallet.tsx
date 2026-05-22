@@ -13,7 +13,7 @@ export const Wallet = ({ account }: WalletProps) => {
 
   useEffect(() => {
     const getData = async () => {
-      const balance = await window.ethereum?.request({
+      const balance = await (window as any).ethereum?.request({
         method: 'eth_getBalance',
         params: [account, 'latest'],
       });

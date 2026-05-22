@@ -1,9 +1,9 @@
 import { useState, type SubmitEvent } from 'react';
+import { ethers } from 'ethers';
 import type { AddTodo } from '../models/AddTodo.ts';
-import type { Contract } from 'ethers';
 
 type AddTodoFormProps = {
-  writeContract: Contract;
+  writeContract: ethers.Contract;
   getTodosFromChain: () => void;
 };
 
@@ -20,26 +20,20 @@ export const AddTodoForm = ({
   const handleSubmit = async (e: SubmitEvent) => {
     e.preventDefault();
 
-    if (!todo.task.trim()) return; // Skicka inte tomt
+    if (!todo.task.trim()) return;
 
     try {
-      // 1. Skapa ett unikt ID (precis som i dina tidigare uppgifter)
       const uniqueId = Date.now().toString();
-
-      // 2. Vi gör kontraktanropet DIREKT här istället för i en annan krånglig fil!
-      // Vi skickar med ID och själva uppgiften (task) till ditt smarta kontrakt
       const tx = await writeContract.addTodo(uniqueId, todo.task);
 
       console.log('Transaktion skickad, väntar på blockkedjan...', tx.hash);
-      await tx.wait(); // Väntar tills det är sparat på kedjan
+      await tx.wait();
 
-      // 3. Om allt gick bra, hämta den uppdaterade listan till skärmen
       getTodosFromChain();
     } catch (error) {
       console.error('Kunde inte spara todo till blockchain:', error);
     }
 
-    // Tömmer formuläret efteråt, precis som du är van vid
     setTodo({
       id: '',
       task: '',
@@ -56,7 +50,6 @@ export const AddTodoForm = ({
           id='task'
           placeholder='Vad behöver du göra?'
           value={todo.task}
-          // Vi uppdaterar bara 'task'-egenskapen i objektet
           onChange={(e) => setTodo({ ...todo, task: e.target.value })}
           style={{ padding: '8px', marginRight: '10px', width: '250px' }}
         />
