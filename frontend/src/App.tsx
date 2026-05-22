@@ -10,6 +10,11 @@ interface Todo {
   task: string;
   done: boolean;
 }
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 function App() {
   const [account, setAccount] = useState<string>('');
@@ -23,6 +28,32 @@ function App() {
     }
     return [];
   });
+
+  const getTodosFromChain = async () => {
+    if (!readContract) return;
+
+    try {
+      const count = await readContract.todoCount();
+      const loadedTodos = [];
+
+      // Loopa igenom alla sparade todos på kedjan
+      for (let i = 1; i <= count; i++) {
+        const t = await readContract.todos(i);
+
+        if (t.id.toString() !== '0') {
+          loadedTodos.push({
+            id: t.id.toString(),
+            task: t._content,
+            done: t.done,
+          });
+        }
+      }
+
+      setTodos(loadedTodos);
+    } catch (error) {
+      console.error('Kunde inte hämta listan från blockkedjan:', error);
+    }
+  };
 
   const initWallet = async () => {
     const customWindow = window as any;
@@ -57,33 +88,101 @@ function App() {
     }
   };
 
-  const removeTodo = (id: string) => {
-    const updatedTodos: Todo[] = todos.filter((todo) => todo.id !== id);
-    setTodos(updatedTodos);
-    localStorage.setItem('my_todos', JSON.stringify(updatedTodos));
+  const removeTodo = async (id: string) => {
+    if (!writeContract) return;
+
+    try {
+      const tx = await writeContract.removeTodo(Number(id));
+
+      await tx.wait();
+      await getTodosFromChain();
+    } catch (error) {
+      console.error('Kunde inte ta bort todo från blockkedjan:', error);
+    }
   };
 
   useEffect(() => {
-    async function fetchTodos() {
-      if (todos.length > 0) return;
+    async function checkExistingConnection() {
+      const provider = (window as any).ethereum;
+      if (provider) {
+        try {
+          const accounts = await provider.request({ method: 'eth_accounts' });
+          if (accounts && accounts.length > 0) {
+            setAccount(accounts[0]);
+          }
+        } catch (err) {
+          console.error('Kunde inte kontrollera befintlig anslutning:', err);
+        }
+      }
+    }
+    checkExistingConnection();
+    if (account) {
+      initWallet();
+    }
+  }, [account]);
+
+  useEffect(() => {
+    async function fetchTodosFromChain() {
+      if (!readContract) return;
+
       try {
-        const response = await fetch(
-          'https://random-todos.azurewebsites.net/todos?apikey=$2a$10$w3SJJyaqZ6x6kgg0XStRp.LCs15HUzlTnQTyp8H0pXv8zTim0GSIG',
-        );
-        const data: Todo[] = await response.json();
-        setTodos(data);
-        localStorage.setItem('my_todos', JSON.stringify(data));
+        const count = await readContract.todoCount();
+        const loadedTodos = [];
+
+        for (let i = 1; i <= count; i++) {
+          const t = await readContract.todos(i);
+
+          if (t.id.toString() !== '0') {
+            loadedTodos.push({
+              id: t.id.toString(),
+              task: t._content,
+              done: t.done,
+            });
+          }
+        }
+
+        setTodos(loadedTodos);
       } catch (error) {
-        console.error('Fel vid hämtning:', error);
+        console.error('Kunde inte hämta från kedjan:', error);
       }
     }
 
-    fetchTodos();
-    initWallet();
-  }, []);
+    fetchTodosFromChain();
+  }, [readContract]);
 
   return (
     <>
+      {account === '' ? (
+        <button
+          onClick={async () => {
+            const provider = (window as any).ethereum;
+
+            if (provider) {
+              try {
+                // Nu vet koden exakt vad provider är!
+                const accounts = await provider.request({
+                  method: 'eth_requestAccounts',
+                });
+
+                setAccount(accounts[0]);
+              } catch (err) {
+                console.error('Användaren nekade anslutningen:', err);
+              }
+            } else {
+              alert(
+                'Ingen Web3-plånbok hittades! Se till att din plånbok är aktiverad.',
+              );
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            marginBottom: '20px',
+            cursor: 'pointer',
+          }}
+        >
+          Anslut Plånbok Manuellt
+        </button>
+      ) : null}
       <div className='wallet-info'>
         <p>
           <strong>Konto:</strong> {account ? account : 'Ej ansluten'}

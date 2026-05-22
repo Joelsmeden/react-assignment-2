@@ -23,8 +23,7 @@ export const AddTodoForm = ({
     if (!todo.task.trim()) return;
 
     try {
-      const uniqueId = Date.now().toString();
-      const tx = await writeContract.addTodo(uniqueId, todo.task);
+      const tx = await writeContract.addTodo(todo.task);
 
       console.log('Transaktion skickad, väntar på blockkedjan...', tx.hash);
       await tx.wait();
