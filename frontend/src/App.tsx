@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import { TodoItem } from './components/TodoItem.tsx';
+import { AddTodoForm } from './components/TodoForm.tsx';
 import { abi, adress } from './config';
 import './App.css';
 
@@ -93,6 +94,14 @@ function App() {
       </div>
       <div className='app-container'>
         <h1>Min Todo-lista</h1>
+
+        {writeContract && (
+          <AddTodoForm
+            writeContract={writeContract}
+            getTodosFromChain={initWallet}
+          />
+        )}
+
         <ul>
           {todos.map((t) => (
             <TodoItem key={t.id} todo={t} onDelete={removeTodo} />
