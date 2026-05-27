@@ -26,9 +26,12 @@ export const AddTodoForm = ({
       const tx = await writeContract.addTodo(todo.task);
 
       console.log('Transaktion skickad, väntar på blockkedjan...', tx.hash);
+
       await tx.wait();
 
-      getTodosFromChain();
+      if (getTodosFromChain) {
+        await getTodosFromChain();
+      }
     } catch (error) {
       console.error('Kunde inte spara todo till blockchain:', error);
     }

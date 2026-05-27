@@ -10,6 +10,7 @@ interface Todo {
   task: string;
   done: boolean;
 }
+
 declare global {
   interface Window {
     ethereum?: any;
@@ -19,8 +20,12 @@ declare global {
 function App() {
   const [account, setAccount] = useState<string>('');
   const [balance, setBalance] = useState<string>('');
-  const [readContract, setReadContract] = useState<any>();
-  const [writeContract, setWriteContract] = useState<any>();
+  const [readContract, setReadContract] = useState<ethers.Contract | null>(
+    null,
+  );
+  const [writeContract, setWriteContract] = useState<ethers.Contract | null>(
+    null,
+  );
   const [todos, setTodos] = useState<Todo[]>(() => {
     const saved: string | null = localStorage.getItem('my_todos');
     if (saved !== null) {
@@ -36,14 +41,13 @@ function App() {
       const count = await readContract.todoCount();
       const loadedTodos = [];
 
-      // Loopa igenom alla sparade todos på kedjan
       for (let i = 1; i <= count; i++) {
         const t = await readContract.todos(i);
-
+        console.log('Det här kommer direkt från blockkedjan:', t);
         if (t.id.toString() !== '0') {
           loadedTodos.push({
             id: t.id.toString(),
-            task: t._content,
+            task: t.task,
             done: t.done,
           });
         }
@@ -92,10 +96,14 @@ function App() {
     if (!writeContract) return;
 
     try {
-      const tx = await writeContract.removeTodo(Number(id));
+      console.log('Försöker ta bort todo med ID:', id);
+
+      const tx = await writeContract.removeTodo(parseInt(id));
+
+      console.log('Borttagnings-transaktion skickad:', tx.hash);
 
       await tx.wait();
-      await getTodosFromChain();
+      getTodosFromChain();
     } catch (error) {
       console.error('Kunde inte ta bort todo från blockkedjan:', error);
     }
@@ -122,32 +130,9 @@ function App() {
   }, [account]);
 
   useEffect(() => {
-    async function fetchTodosFromChain() {
-      if (!readContract) return;
-
-      try {
-        const count = await readContract.todoCount();
-        const loadedTodos = [];
-
-        for (let i = 1; i <= count; i++) {
-          const t = await readContract.todos(i);
-
-          if (t.id.toString() !== '0') {
-            loadedTodos.push({
-              id: t.id.toString(),
-              task: t._content,
-              done: t.done,
-            });
-          }
-        }
-
-        setTodos(loadedTodos);
-      } catch (error) {
-        console.error('Kunde inte hämta från kedjan:', error);
-      }
+    if (readContract) {
+      getTodosFromChain();
     }
-
-    fetchTodosFromChain();
   }, [readContract]);
 
   return (
@@ -159,7 +144,6 @@ function App() {
 
             if (provider) {
               try {
-                // Nu vet koden exakt vad provider är!
                 const accounts = await provider.request({
                   method: 'eth_requestAccounts',
                 });
@@ -197,7 +181,7 @@ function App() {
         {writeContract && (
           <AddTodoForm
             writeContract={writeContract}
-            getTodosFromChain={initWallet}
+            getTodosFromChain={getTodosFromChain}
           />
         )}
 
